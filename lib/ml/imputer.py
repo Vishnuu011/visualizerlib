@@ -3,7 +3,7 @@ from lib.ml.base import BaseTransformer
 
 
 
-class SimpleImputerScratch(BaseTransformer):
+class VlibSimpleImputer(BaseTransformer):
     def __init__(self, strategy="mean", columns=None):
         super().__init__(columns)
         self.strategy = strategy
