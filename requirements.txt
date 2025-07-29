@@ -1,0 +1,9 @@
+pandas
+numpy
+matplotlib
+seaborn
+groq
+langchain
+pydantic
+langchain-core
+ipython
