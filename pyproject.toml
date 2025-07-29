@@ -3,14 +3,18 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "visulaizerlib"
-version = "0.1.0"
-description = "A EDA package"
-authors = [{ name="vishnu", email="vishnurrajeev@gmail.com" }]
-license = {text = "MIT"}
+name = "visualizerlib"  
+version = "0.2.0"
+description = "An EDA helper package"
+authors = [{ name = "Vishnu", email = "vishnurrajeev@gmail.com" }]
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.7"
-dependencies = []
+dependencies = [
+    "pandas",
+    "matplotlib",
+    "seaborn"
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
