@@ -1,84 +1,138 @@
 import pandas as pd
 import numpy as np
 import os, sys
-from lib.ml.base import BaseTransformer
+from lib.ml.base import VlibBaseTransformer
 
 
 
-class VlibStandardScaler(BaseTransformer):
-    def fit(self, X, y=None, override_cols=None):
-        cols = self._get_columns(X, override_cols)
-        self.means = X[cols].mean()
-        self.stds = X[cols].std(ddof=0)
-        self.cols = cols
+class VlibStandardScaler(VlibBaseTransformer):
+    def fit(self, X, y=None):
+        cols = self._get_columns(X)
+        self.mean_ = X[cols].mean()
+        self.std_ = X[cols].std()
         return self
 
-    def transform(self, X, override_cols=None):
+    def transform(self, X):
         X = X.copy()
-        cols = self._get_columns(X, override_cols)
-        X_scaled = (X[cols] - self.means) / self.stds
-        return X_scaled  # ✅ return only scaled columns
-
-    def get_feature_names(self, input_cols):
-        return input_cols
+        cols = self._get_columns(X)
+        X[cols] = (X[cols] - self.mean_) / self.std_
+        return X
 
 
-class VlibOneHotEncoder(BaseTransformer):
-    def fit(self, X, y=None, override_cols=None):
-        cols = self._get_columns(X, override_cols)
-        self.categories_ = {}
-        for col in cols:
-            self.categories_[col] = list(pd.Series(X[col]).dropna().unique())
+class VlibMinMaxScaler(VlibBaseTransformer):
+    def fit(self, X, y=None):
+        cols = self._get_columns(X)
+        self.min_ = X[cols].min()
+        self.max_ = X[cols].max()
         return self
 
-    def transform(self, X, override_cols=None):
-        cols = self._get_columns(X, override_cols)
-        new_data = pd.DataFrame(index=X.index)
-        for col in cols:
-            for cat in self.categories_[col]:
-                new_data[f"{col}_{cat}"] = (X[col] == cat).astype(int)
-        return new_data  # ✅ returns only encoded columns
+    def transform(self, X):
+        X = X.copy()
+        cols = self._get_columns(X)
+        X[cols] = (X[cols] - self.min_) / (self.max_ - self.min_)
+        return X
+
+class VlibOrdinalEncoder(VlibBaseTransformer):
+    def fit(self, X, y=None):
+        self.mapping_ = {}
+        for col in self._get_columns(X):
+            self.mapping_[col] = {cat: i for i, cat in enumerate(X[col].astype(str).unique())}
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+        for col in self._get_columns(X):
+            X[col] = X[col].astype(str).map(self.mapping_[col])
+        return X
+
+
+class VlibOneHotEncoder(VlibBaseTransformer):
+    def fit(self, X, y=None):
+        self.categories_ = {
+            col: sorted(X[col].astype(str).unique()) for col in self._get_columns(X)
+        }
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+        for col in self._get_columns(X):
+            dummies = pd.get_dummies(X[col].astype(str), prefix=col)
+            X = X.drop(columns=col)
+            X = pd.concat([X, dummies], axis=1)
+        return X
 
     def get_feature_names(self, input_cols):
-        names = []
+        output_cols = []
         for col in input_cols:
-            for cat in self.categories_[col]:
-                names.append(f"{col}_{cat}")
-        return names
+            for category in self.categories_.get(col, []):
+                output_cols.append(f"{col}_{category}")
+        return output_cols
 
 
-class VlibOrdinalEncoder(BaseTransformer):
-    def fit(self, X, y=None, override_cols=None):
-        cols = self._get_columns(X, override_cols)
-        self.category_mapping = {}
-        for col in cols:
-            unique_vals = list(pd.Series(X[col]).dropna().unique())
-            self.category_mapping[col] = {cat: idx for idx, cat in enumerate(unique_vals)}
+class VlibLabelEncoder(VlibBaseTransformer):
+    def __init__(self, column=None):
+        super().__init__([column] if column else None)
+
+    def fit(self, X, y=None):
+        if isinstance(X, pd.Series):
+            self.col = X.name or "target"
+            values = X.astype(str)
+        else:
+            self.col = self._get_columns(X)[0]
+            values = X[self.col].astype(str)
+
+        self.mapping_ = {cat: i for i, cat in enumerate(values.unique())}
+        self.inverse_mapping_ = {v: k for k, v in self.mapping_.items()}
         return self
 
-    def transform(self, X, override_cols=None):
-        cols = self._get_columns(X, override_cols)
-        encoded = pd.DataFrame(index=X.index)
-        for col in cols:
-            encoded[col] = X[col].map(self.category_mapping[col]).fillna(-1).astype(int)
-        return encoded  # ✅ only encoded columns
+    def transform(self, X):
+        if isinstance(X, pd.Series):
+            encoded = X.astype(str).map(self.mapping_)
+            return encoded.to_numpy()
+        else:
+            X = X.copy()
+            X[self.col] = X[self.col].astype(str).map(self.mapping_)
+            return X
 
-    def get_feature_names(self, input_cols):
-        return input_cols
+    def fit_transform(self, X, y=None):
+        return self.fit(X).transform(X)
+
+    def inverse_transform(self, X):
+        if isinstance(X, np.ndarray):
+            return np.vectorize(self.inverse_mapping_.get)(X)
+        elif isinstance(X, pd.Series):
+            return X.map(self.inverse_mapping_)
+        else:
+            X = X.copy()
+            X[self.col] = X[self.col].map(self.inverse_mapping_)
+            return X
 
 
-class VlibLabelEncoder:
-    def fit(self, y):
-        self.classes_ = np.unique(y)
-        self.class_to_int = {cls: idx for idx, cls in enumerate(self.classes_)}
-        self.int_to_class = {idx: cls for cls, idx in self.class_to_int.items()}
-        return self
+class VlibFunctionalTransformer(VlibBaseTransformer):
+    def __init__(self, func, columns=None):
+        super().__init__(columns)
+        self.func = func
 
-    def transform(self, y):
-        return np.array([self.class_to_int[val] for val in y])
+    def transform(self, X):
+        X = X.copy()
+        cols = self._get_columns(X)
+        X[cols] = self.func(X[cols])
+        return X
 
-    def inverse_transform(self, y_int):
-        return np.array([self.int_to_class[val] for val in y_int])
 
-    def fit_transform(self, y):
-        return self.fit(y).transform(y)
+
+def remove_outliers_IQR(col, df):
+
+        
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+
+    iqr = Q3 - Q1
+
+    upper_limit = Q3 + 1.5 * iqr
+    lower_limit = Q1 - 1.5 * iqr
+
+    df.loc[(df[col]>upper_limit),col] = upper_limit
+    df.loc[(df[col]<lower_limit),col] = lower_limit
+
+    return df

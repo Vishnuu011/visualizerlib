@@ -1,31 +1,28 @@
 import os, sys
-from lib.ml.base import BaseTransformer
+from lib.ml.base import VlibBaseTransformer
 
 
 
-class VlibSimpleImputer(BaseTransformer):
-    def __init__(self, strategy="mean", columns=None):
+
+class VlibSimpleImputer(VlibBaseTransformer):
+    def __init__(self, columns=None, strategy="mean"):
         super().__init__(columns)
         self.strategy = strategy
 
-    def fit(self, X, y=None, override_cols=None):
-        cols = self._get_columns(X, override_cols)
-        self.fill_values = {}
-        for col in cols:
-            if self.strategy == "mean":
-                self.fill_values[col] = X[col].mean()
-            elif self.strategy == "median":
-                self.fill_values[col] = X[col].median()
-            else:
-                self.fill_values[col] = X[col].mode()[0]
+    def fit(self, X, y=None):
+        cols = self._get_columns(X)
+        if self.strategy == "mean":
+            self.statistics_ = X[cols].mean()
+        elif self.strategy == "median":
+            self.statistics_ = X[cols].median()
+        elif self.strategy == "most_frequent":
+            self.statistics_ = X[cols].mode().iloc[0]
+        else:
+            raise ValueError(f"Unsupported strategy: {self.strategy}")
         return self
 
-    def transform(self, X, override_cols=None):
+    def transform(self, X):
         X = X.copy()
-        cols = self._get_columns(X, override_cols)
-        for col in cols:
-            X[col] = X[col].fillna(self.fill_values[col])
-        return X[cols]  # ✅ return only processed columns
-
-    def get_feature_names(self, input_cols):
-        return input_cols
+        for col in self._get_columns(X):
+            X[col] = X[col].fillna(self.statistics_[col])
+        return X

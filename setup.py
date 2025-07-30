@@ -3,24 +3,40 @@ from pathlib import Path
 
 
 def read_requirements():
-    return Path(__file__).parent.joinpath("requirements.txt").read_text().splitlines()
+    with open("/home/vishnu/Data2/visualizerlib/visualizerlib/requirements.txt") as f:
+        return f.read().splitlines()
 
-dis = """""
-A simple visualization and EDA helper package and also agent execute for plot insights
-and ml helper classes and functions preprocessor, imputer, chain pipeline, columtrasformer
+
+description = """
+A simple visualization and EDA helper package. Includes:
+- Agent execution for plot insights
+- ML helper classes and functions
+- Preprocessor, imputer, column transformer, and chaining pipeline
 """
 
 setup(
-    name="visualizerlib",  
-    version="0.2.0",        
+    name="visualizerlib",
+    version="0.2.3",
     packages=find_packages(),
-    install_requires=read_requirements(),
+    install_requires=[
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "groq",
+    "langchain",
+    "pydantic",
+    "langchain-core",
+    "ipython",
+    "scikit-learn",
+    "tqdm",
+    ],
     author="Vishnu",
     author_email="vishnurrajeev@gmail.com",
-    description=dis,
+    description=description,  # Keep this short
     long_description=Path(__file__).parent.joinpath("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
-    url="https://github.com/Vishnuu011/visualizerlib/tree/main",  
+    url="https://github.com/Vishnuu011/visualizerlib",  # Remove /tree/main for PyPI compatibility
     license="MIT",
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -29,4 +45,5 @@ setup(
     ],
     python_requires=">=3.7",
 )
+
 

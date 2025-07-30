@@ -22,12 +22,18 @@ def inspect_dataframe(data: pd.DataFrame) -> pd.DataFrame:
 
         print("-" * 40)
 
+        # Duplicated Rows
         count_duplicated = data.duplicated().sum()
 
         print(f"Duplicated Sum Of Count : {int(count_duplicated)}")
-
+        if count_duplicated > 0:
+            print("-> Removing duplicated rows...")
+            data = data.drop_duplicates()
+            print(f"-> Duplicates removed. New shape: {data.shape}")
+        print(f"-----RMOVED DUPLICATED------: {data.duplicated().sum()}")    
         print("-" * 40)
 
+        # Missing Values
         print(f"Missing Values Per Columns:")
 
         print("-" * 40)
@@ -37,16 +43,16 @@ def inspect_dataframe(data: pd.DataFrame) -> pd.DataFrame:
         print("-" * 40)
 
         missing_columns_values = data.columns[data.isnull().any()]
-        print(f"Missing value Colums : {missing_columns_values}")
-
+        print(f"Missing value Columns : {missing_columns_values.tolist()}")
         print("-" * 40)
 
+        # Summary statistics
         summary_statistics = data.describe()
 
         return summary_statistics
 
     except Exception as e:
-        print(f"Error Occured In : {e}")
+        print(f"Error Occurred In : {e}")
         raise
 
 
